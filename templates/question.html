@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Question</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Question <span id="question-number">{{ quiz.current_question + 1 }}</span> of {{ quiz.num_questions }}</h1>
+        
+        <div id="question-container">
+            {% if question %}
+                <div id="question-text">{{ question.question }}</div>
+                
+                <form id="answer-form">
+                    <div id="options-container">
+                        {% for option in question.options %}
+                            <label>
+                                <input type="{{ 'checkbox' if question.correct_answers is defined else 'radio' }}" name="answer" value="{{ loop.index }}">
+                                {{ chr(65 + loop.index0) }}. {{ option }}
+                            </label><br>
+                        {% endfor %}
+                    </div>
+                    <button type="submit" id="submit-answer">Submit Answer</button>
+                </form>
+            {% else %}
+                <p>Loading question...</p>
+            {% endif %}
+        </div>
+        
+        <div id="loading" style="display: none;">
+            <p>Processing...</p>
+        </div>
+        
+        <div id="feedback" style="display: none;">
+            <h2>Feedback</h2>
+            <p id="feedback-result"></p>
+            <div id="feedback-explanation"></div>
+            <div id="documentation">
+                <h3>Related Documentation</h3>
+                <p id="doc-link"></p>
+                <p id="doc-snippet"></p>
+            </div>
+        </div>
+        
+        <button id="next-question" style="display: none;">Next Question</button>
+    </div>
+
+    <script>
+        let currentQuestionNumber = {{ quiz.current_question + 1 }};
+
+        function displayQuestion(question) {
+            document.getElementById('question-number').textContent = currentQuestionNumber;
+            document.getElementById('question-text').textContent = question.question;
+            const optionsContainer = document.getElementById('options-container');
+            optionsContainer.innerHTML = '';
+            question.options.forEach((option, index) => {
+                const label = document.createElement('label');
+                const input = document.createElement('input');
+                input.type = Array.isArray(question.correct_answer) ? 'checkbox' : 'radio';
+                input.name = 'answer';
+                input.value = index + 1;
+                const letterLabel = String.fromCharCode(65 + index); // A, B, C, D...
+                label.appendChild(input);
+                label.appendChild(document.createTextNode(` ${letterLabel}. ${option}`));
+                optionsContainer.appendChild(label);
+                optionsContainer.appendChild(document.createElement('br'));
+            });
+            document.getElementById('question-container').style.display = 'block';
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('submit-answer').disabled = false;
+        }
+
+        function displayFeedback(feedback) {
+            console.log("Received feedback:", feedback);
+            const feedbackResult = document.getElementById('feedback-result');
+            const feedbackExplanation = document.getElementById('feedback-explanation');
+            
+            if (feedback.is_correct) {
+                feedbackResult.textContent = 'Correct!';
+                feedbackResult.style.color = 'green';
+            } else if (feedback.partially_correct) {
+                feedbackResult.textContent = 'Partially correct.';
+                feedbackResult.style.color = 'orange';
+            } else {
+                feedbackResult.textContent = 'Incorrect.';
+                feedbackResult.style.color = 'red';
+            }
+
+            feedbackExplanation.innerHTML = '';
+            
+            const correctAnswers = Array.isArray(feedback.correct_answer) ? feedback.correct_answer : [feedback.correct_answer];
+            
+            if (Array.isArray(feedback.explanation)) {
+                feedback.explanation.forEach((exp, index) => {
+                    const optionLetter = String.fromCharCode(65 + index);
+                    const explanation = document.createElement('p');
+                    explanation.innerHTML = `<strong>${optionLetter}:</strong> ${exp}`;
+                    if (correctAnswers.includes(index + 1)) {
+                        explanation.style.color = 'green';
+                    }
+                    feedbackExplanation.appendChild(explanation);
+                });
+            } else if (typeof feedback.explanation === 'string') {
+                feedbackExplanation.innerHTML = `<p>${feedback.explanation}</p>`;
+            } else {
+                console.error("Unexpected explanation format:", feedback.explanation);
+            }
+
+            document.getElementById('doc-link').innerHTML = feedback.doc_link ? `<a href="${feedback.doc_link}" target="_blank">Official Documentation</a>` : 'No documentation link available';
+            document.getElementById('doc-snippet').textContent = feedback.doc_snippet || 'No documentation snippet available';
+        }
+
+        function loadNextQuestion() {
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('question-container').style.display = 'none';
+            document.getElementById('feedback').style.display = 'none';
+            document.getElementById('next-question').style.display = 'none';
+
+            fetch('{{ url_for("next_question") }}', {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.redirect) {
+                        window.location.href = data.redirect;
+                    } else {
+                        currentQuestionNumber++;
+                        displayQuestion(data.question);
+                    }
+                })
+                .catch(error => {
+                    console.error("Error:", error);
+                    document.getElementById('loading').style.display = 'none';
+                    alert("An error occurred. Please try again.");
+                });
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('answer-form').addEventListener('submit', function(e) {
+                e.preventDefault();
+                document.getElementById('loading').style.display = 'block';
+                document.getElementById('submit-answer').disabled = true;
+
+                const formData = new FormData(this);
+                fetch('{{ url_for("question") }}', {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    console.log("Received data:", data);
+                    document.getElementById('loading').style.display = 'none';
+                    document.getElementById('feedback').style.display = 'block';
+                    
+                    displayFeedback(data.feedback);
+                    
+                    if (data.is_last_question) {
+                        document.getElementById('next-question').textContent = 'See Results';
+                        document.getElementById('next-question').onclick = function() {
+                            window.location.href = data.result_url;
+                        };
+                    } else {
+                        document.getElementById('next-question').textContent = 'Next Question';
+                        document.getElementById('next-question').onclick = loadNextQuestion;
+                    }
+                    document.getElementById('next-question').style.display = 'block';
+                })
+                .catch(error => {
+                    console.error("Error:", error);
+                    document.getElementById('loading').style.display = 'none';
+                    alert("An error occurred. Please try again.");
+                });
+            });
+        });
+    </script>
+</body>
+</html>

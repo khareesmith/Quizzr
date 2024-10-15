@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MS-900 Quiz</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Welcome to the MS-900 Quiz!</h1>
+        <form action="{{ url_for('index') }}" method="post">
+            <label for="num_questions">Number of questions:</label>
+            <input type="number" id="num_questions" name="num_questions" min="1" max="20" required>
+            
+            <label for="difficulty">Difficulty:</label>
+            <select id="difficulty" name="difficulty" required>
+                <option value="easy">Easy</option>
+                <option value="medium">Medium</option>
+                <option value="hard">Hard</option>
+            </select>
+            
+            <label for="topic">Topic:</label>
+            <select id="topic" name="topic" required>
+                <option value="Describe cloud concepts">Describe cloud concepts</option>
+                <option value="Describe Microsoft 365 apps and services">Describe Microsoft 365 apps and services</option>
+                <option value="Describe security, compliance, privacy, and trust in Microsoft 365">Describe security, compliance, privacy, and trust in Microsoft 365</option>
+                <option value="Describe Microsoft 365 pricing, licensing, and support">Describe Microsoft 365 pricing, licensing, and support</option>
+                <option value="All Topics">All Topics</option>
+            </select>
+            
+            <button type="submit">Start Quiz</button>
+        </form>
+    </div>
+</body>
+</html>

@@ -1,0 +1,38 @@
+<!-- templates/result.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MS-900 Quiz - Results</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Quiz Results</h1>
+        <p>Your final score is {{ quiz.score }} out of {{ quiz.num_questions }}.</p>
+        <p>That's {{ (quiz.score / quiz.num_questions * 100)|round(2) }}% correct.</p>
+        
+        <h2>Performance Summary</h2>
+        <ul>
+        {% for summary in quiz.show_performance_summary() %}
+            <li>{{ summary }}</li>
+        {% endfor %}
+        </ul>
+        
+        <h2>Areas for Improvement</h2>
+        {% set weak_areas = quiz.get_weak_areas() %}
+        {% if weak_areas %}
+        <ul>
+        {% for area in weak_areas %}
+            <li>{{ area }}</li>
+        {% endfor %}
+        </ul>
+        {% else %}
+        <p>Great job! You don't have any specific areas that need improvement.</p>
+        {% endif %}
+        
+        <a href="{{ url_for('index') }}" class="button">Start New Quiz</a>
+    </div>
+</body>
+</html>
